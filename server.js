@@ -62,29 +62,44 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
 
   // // Emit the file details to the room
   // io.to(userId).emit('fileUploaded', fileMessage);
-
+  
   res.status(201).json({ message: 'File uploaded successfully', file: req.file });
 });
 
-app.get('/deleteAllFiles', deleteAllFiles);
+app.get('/deleteAllFilesAlone', deleteAllFilesAlone);
 
+app.get('/resetAll', async (req, res) => {
+  try {
+    // Reset the state of rooms and roomDetails
+    rooms = [
+      { id: '1', userId: 'user1', duration: 9725689998926 },
+      { id: '2', userId: 'user2', duration: 9725689998926 },
+      { id: '3', userId: 'user3', duration: 9725689998926 },
+      { id: '4', userId: 'user4', duration: 9725689998926 },
+    ];
+    
+    roomDetails = [
+      { id: '1', userId: 'user1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
+      { id: '2', userId: 'user2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
+      { id: '3', userId: 'user3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
+    ];
 
-// Function to delete all files in the 'uploads' directory
-function deleteAllFiles(req, res) {
+    // Await the completion of deleteAllFiles
+    const result = await deleteAllFiles();
+    console.log(result.message);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Error deleting files:", error);
+    if (!res.headersSent) {
+      res.status(500).json({ message: 'Failed to delete some or all files' });
+    }
+  }
+});
+
+function deleteAllFilesAlone(req, res) {
   console.log("Delete triggered")
   // In-memory data store
-rooms = [
-  { id: '1', userId: 'user1', duration:9725689998926 },
-  { id: '2', userId: 'user2', duration:9725689998926 },
-  { id: '3', userId: 'user3', duration:9725689998926  },
-  { id: '4', userId: 'user4', duration:9725689998926  },
-];
 
-roomDetails = [
-  { id: '1', userId: 'user1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
-  { id: '2', userId: 'user2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
-  { id: '3', userId: 'user3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
-];
   const directoryPath = path.join(__dirname, 'uploads');
   
   fs.readdir(directoryPath, (err, files) => {
@@ -117,6 +132,52 @@ roomDetails = [
         res.status(200).json({ message: 'All files deleted successfully' });
       }
     }, 1000); // Adjust the timeout if needed based on the expected number of files
+  });
+}
+  
+// Function to delete all files in the 'uploads' directory
+function deleteAllFiles() {
+  return new Promise((resolve, reject) => {
+    console.log("Delete triggered");
+
+    const directoryPath = path.join(__dirname, 'uploads');
+
+    fs.readdir(directoryPath, (err, files) => {
+      if (err) {
+        console.error('Error reading directory:', err);
+        return reject(new Error('Error reading directory'));
+      }
+
+      // If there are no files, resolve immediately
+      if (files.length === 0) {
+        return resolve({ message: 'No files to delete' });
+      }
+
+      let deletionErrors = [];
+      let pendingDeletions = files.length;
+
+      if (pendingDeletions === 0) {
+        return resolve({ message: 'No files to delete' });
+      }
+
+      files.forEach(file => {
+        fs.unlink(path.join(directoryPath, file), (err) => {
+          if (err) {
+            console.error(`Error deleting file ${file}:`, err);
+            deletionErrors.push(file);
+          }
+
+          pendingDeletions -= 1;
+          if (pendingDeletions === 0) {
+            if (deletionErrors.length > 0) {
+              reject(new Error('Some files could not be deleted'));
+            } else {
+              resolve({ message: 'All files deleted successfully' });
+            }
+          }
+        });
+      });
+    });
   });
 }
 
