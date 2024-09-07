@@ -7,7 +7,7 @@ const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
 const app = express();
-
+const fs = require('fs');
 const server = http.createServer(app); // Modify this line
 const port = process.env.PORT || 3000;
 const io = socketIo(server, { // Add this block
@@ -66,6 +66,46 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
   res.status(201).json({ message: 'File uploaded successfully', file: req.file });
 });
 
+app.get('/deleteAllFiles', deleteAllFiles);
+
+
+// Function to delete all files in the 'uploads' directory
+function deleteAllFiles(req, res) {
+  console.log("Delete triggered")
+  const directoryPath = path.join(__dirname, 'uploads');
+  
+  fs.readdir(directoryPath, (err, files) => {
+    if (err) {
+      console.error('Error reading directory:', err);
+      return res.status(500).json({ message: 'Error reading directory' });
+    }
+
+    // If there are no files, send a response
+    if (files.length === 0) {
+      return res.status(200).json({ message: 'No files to delete' });
+    }
+
+    // Delete each file in the directory
+    let deletionErrors = [];
+    files.forEach(file => {
+      fs.unlink(path.join(directoryPath, file), (err) => {
+        if (err) {
+          console.error(`Error deleting file ${file}:`, err);
+          deletionErrors.push(file);
+        }
+      });
+    });
+
+    // Send response after all deletions are attempted
+    setTimeout(() => {
+      if (deletionErrors.length > 0) {
+        res.status(500).json({ message: 'Some files could not be deleted', errors: deletionErrors });
+      } else {
+        res.status(200).json({ message: 'All files deleted successfully' });
+      }
+    }, 1000); // Adjust the timeout if needed based on the expected number of files
+  });
+}
 
 // Socket.IO event handling
 io.on('connection', (socket) => {
