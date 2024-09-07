@@ -69,6 +69,7 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
 app.get('/deleteAllFilesAlone', deleteAllFilesAlone);
 
 app.get('/resetAll', async (req, res) => {
+  console.log("Reset triggered")
   try {
     // Reset the state of rooms and roomDetails
     rooms = [
@@ -229,7 +230,7 @@ app.get('/rooms', (req, res) => {
 });
 
 app.post('/createRoom', (req, res) => {
-console.log('POST /rooms');
+console.log('POST /rooms create rooms');
 console.log('Request body:', req.body);
   const { userId, duration } = req.body;
   const existingRoom = rooms.find(room => room.userId === userId);
@@ -323,7 +324,7 @@ setInterval(() => {
   deletingRooms.forEach(room => {
     roomDetails = roomDetails.filter(roomDetail => roomDetail.userId !== room.userId);
   });
-}, 5000);
+}, 10000);
 
 // Helper function to generate unique IDs
 function generateId() {
