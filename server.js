@@ -72,6 +72,19 @@ app.get('/deleteAllFiles', deleteAllFiles);
 // Function to delete all files in the 'uploads' directory
 function deleteAllFiles(req, res) {
   console.log("Delete triggered")
+  // In-memory data store
+rooms = [
+  { id: '1', userId: 'user1', duration:9725689998926 },
+  { id: '2', userId: 'user2', duration:9725689998926 },
+  { id: '3', userId: 'user3', duration:9725689998926  },
+  { id: '4', userId: 'user4', duration:9725689998926  },
+];
+
+roomDetails = [
+  { id: '1', userId: 'user1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
+  { id: '2', userId: 'user2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
+  { id: '3', userId: 'user3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
+];
   const directoryPath = path.join(__dirname, 'uploads');
   
   fs.readdir(directoryPath, (err, files) => {
