@@ -229,6 +229,12 @@ app.get('/rooms', (req, res) => {
   res.json(rooms);
 });
 
+// check if server is up
+app.get('/ping', (req, res) => {
+    console.log('GET /ping');
+  res.send('Pong!');
+});
+
 // show current time in html
 app.get('/', (req, res) => {
   version = "v2024.09.26.01"
