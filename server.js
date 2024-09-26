@@ -229,6 +229,17 @@ app.get('/rooms', (req, res) => {
   res.json(rooms);
 });
 
+// show current time in html
+app.get('/', (req, res) => {
+  version = "v2024.09.26.01"
+    console.log('GET /currentTime');
+  const currentTime = new Date().toLocaleTimeString();
+  // Display version in h1 tag
+  res.send(`<h1>Version: ${version}</h1><p>Current time: ${currentTime}</p>`);
+  // res.send(`Current time: ${currentTime}`);
+});
+
+
 app.post('/createRoom', (req, res) => {
 console.log('POST /rooms create rooms');
 console.log('Request body:', req.body);
