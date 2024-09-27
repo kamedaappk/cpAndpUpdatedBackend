@@ -54,6 +54,7 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
   // Add the file info to the room's messages
   const fileMessage = {
     text: `File uploaded: ${req.file.filename}`,
+    filename: req.file.originalname,
     filePath: `/uploads/${req.file.filename}`,
     timestamp: Date.now()
   };
