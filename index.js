@@ -8,6 +8,7 @@ const multer = require('multer');
 const path = require('path');
 const app = express();
 const fs = require('fs');
+const checkDiskSpace = require('check-disk-space').default;
 const server = http.createServer(app); // Modify this line
 const port = process.env.PORT || 3000;
 const io = socketIo(server, { // Add this block
@@ -23,7 +24,69 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(bodyParser.json());
 app.use(cors());
 
+// Helper function to convert bytes to the most appropriate unit
+function formatBytes(bytes) {
+  const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB'];
+  let i = 0;
+  while (bytes >= 1024 && i < units.length - 1) {
+    bytes /= 1024;
+    i++;
+  }
+  return { value: bytes.toFixed(2), unit: units[i] };
+}
 
+app.get('/getspaceinfo', (req, res) => {
+  const directoryPath = path.join(__dirname, 'uploads'); // or try 'C:/'
+
+  checkDiskSpace(directoryPath)
+    .then((diskSpace) => {
+      console.log('Disk space info:', diskSpace);
+
+      // Use `size` for total space (not `total` since `check-disk-space` reports `size`)
+      const totalSpace = diskSpace.size || 0;
+      const freeSpace = diskSpace.free || 0;
+
+      // Calculate used space as total - free
+      const usedSpace = totalSpace - freeSpace;
+
+      // Convert to human-readable units and extract the unit
+      const totalSpaceFormatted = formatBytes(totalSpace);
+      const usedSpaceFormatted = formatBytes(usedSpace);
+      const freeSpaceFormatted = formatBytes(freeSpace);
+
+      // Used percentage
+      const usedPercentage = totalSpace > 0 ? ((usedSpace / totalSpace) * 100).toFixed(2) : 0;
+      const freePercentage = totalSpace > 0 ? ((freeSpace / totalSpace) * 100).toFixed(2) : 0;
+
+      // Send both numeric and human-readable values
+      res.json({
+        message: 'Disk space details',
+        totalSpace: {
+          value: parseFloat(totalSpaceFormatted.value),
+          unit: totalSpaceFormatted.unit
+        },
+        usedSpace: {
+          value: parseFloat(usedSpaceFormatted.value),
+          unit: usedSpaceFormatted.unit
+        },
+        freeSpace: {
+          value: parseFloat(freeSpaceFormatted.value),
+          unit: freeSpaceFormatted.unit
+        },
+        usedPercentage: parseFloat(usedPercentage),  // Numeric value for used percentage
+        freePercentage: parseFloat(freePercentage),  // Numeric value for free percentage
+        totalSpaceReadable: `${totalSpaceFormatted.value} ${totalSpaceFormatted.unit}`,
+        usedSpaceReadable: `${usedSpaceFormatted.value} ${usedSpaceFormatted.unit}`,
+        freeSpaceReadable: `${freeSpaceFormatted.value} ${freeSpaceFormatted.unit}`,
+        diskPath: directoryPath,
+        unit: totalSpaceFormatted.unit // This is the unit used for all numeric values
+      });
+    })
+    .catch((err) => {
+      console.error('Error getting disk usage:', err);
+      res.status(500).json({ message: 'Error getting disk space', error: err.message });
+    });
+});
 
 
 // Set up multer for file uploads
@@ -212,16 +275,16 @@ io.on('connection', (socket) => {
 
 // In-memory data store
 let rooms = [
-  { id: '1', userId: 'user1', duration:9725689998926 },
-  { id: '2', userId: 'user2', duration:9725689998926 },
-  { id: '3', userId: 'user3', duration:9725689998926  },
-  { id: '4', userId: 'user4', duration:9725689998926  },
+  { id: '1', userId: 'USER1', duration:9725689998926 },
+  { id: '2', userId: 'USER2', duration:9725689998926 },
+  { id: '3', userId: 'USER3', duration:9725689998926  },
+  { id: '4', userId: 'USER4', duration:9725689998926  },
 ];
 
 let roomDetails = [
-  { id: '1', userId: 'user1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
-  { id: '2', userId: 'user2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
-  { id: '3', userId: 'user3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
+  { id: '1', userId: 'USER1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
+  { id: '2', userId: 'USER2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
+  { id: '3', userId: 'USER3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
 ];
 
 // Routes
@@ -233,12 +296,16 @@ app.get('/rooms', (req, res) => {
 // check if server is up
 app.get('/ping', (req, res) => {
     console.log('GET /ping');
+  // // timeout for 5 seconds
+  // setTimeout(() => {
+  //   res.send('Pong!');
+  // }, 50000);
   res.send('Pong!');
 });
 
 // show current time in html
 app.get('/', (req, res) => {
-  version = "v2024.09.26.01"
+  version = "v2024.11.26.01"
     console.log('GET /currentTime');
   const currentTime = new Date().toLocaleTimeString();
   // Display version in h1 tag
