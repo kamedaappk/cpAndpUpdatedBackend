@@ -109,6 +109,7 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
   const { userId } = req.body;
   console.log('userId:', userId);
   const room = roomDetails.find(room => room.userId === userId);
+  const moment = require('moment-timezone');
 
   if (!room) {
     return res.status(404).json({ message: 'Room not found for file upload' });
@@ -123,6 +124,7 @@ app.post('/uploadFile', upload.single('file'), (req, res) => {
   };
 
   room.messages.push(fileMessage);
+  io.to(userId).emit('message', fileMessage);
 
   // // Emit the file details to the room
   // io.to(userId).emit('fileUploaded', fileMessage);
@@ -137,16 +139,16 @@ app.get('/resetAll', async (req, res) => {
   try {
     // Reset the state of rooms and roomDetails
     rooms = [
-      { id: '1', userId: 'user1', duration: 9725689998926 },
-      { id: '2', userId: 'user2', duration: 9725689998926 },
-      { id: '3', userId: 'user3', duration: 9725689998926 },
-      { id: '4', userId: 'user4', duration: 9725689998926 },
+      { id: '1', userId: 'USER1', duration:9725689998926, key: '1' },
+  { id: '2', userId: 'USER2', duration:9725689998926, key: '2' },
+  { id: '3', userId: 'USER3', duration:9725689998926, key: '3'  },
+  { id: '4', userId: 'USER4', duration:9725689998926, key: '4'  },
     ];
     
     roomDetails = [
-      { id: '1', userId: 'user1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
-      { id: '2', userId: 'user2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
-      { id: '3', userId: 'user3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
+      { id: '1', userId: 'USER1', messages: [{ text: 'Hello from room 1!', timestamp: 1725689998926 }] },
+  { id: '2', userId: 'USER2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
+  { id: '3', userId: 'USER3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
     ];
 
     // Await the completion of deleteAllFiles
@@ -248,37 +250,28 @@ function deleteAllFiles() {
 
 // Socket.IO event handling
 io.on('connection', (socket) => {
-  console.log('A user connected');
+  console.log(`A user connected with socket id: ${socket.id}`);
 
-  // Handle joining a room
   socket.on('joinRoom', ({ userId }) => {
     console.log(`${userId} joined the room`);
-    socket.join(userId); // User joins a room based on userId
+    socket.join(userId);
   });
 
-  // Handle receiving a new message
-  socket.on('newMessage', ({ userId, message }) => {
-    const room = roomDetails.find(room => room.userId === userId);
-    if (room) {
-      room.messages.push(message);
-      console.log(`New message for room ${userId}:`, message);
-      // Emit the message to all clients in the room
-      io.to(userId).emit('message', message);
-    }
+  socket.on('leaveRoom', ({ userId }) => {
+    console.log(`${userId} left the room`);
+    socket.leave(userId);
   });
 
-  // Handle disconnection
   socket.on('disconnect', () => {
-    console.log('A user disconnected');
+    console.log(`A user with socket id: ${socket.id} disconnected`);
   });
 });
-
 // In-memory data store
 let rooms = [
-  { id: '1', userId: 'USER1', duration:9725689998926 },
-  { id: '2', userId: 'USER2', duration:9725689998926 },
-  { id: '3', userId: 'USER3', duration:9725689998926  },
-  { id: '4', userId: 'USER4', duration:9725689998926  },
+  { id: '1', userId: 'USER1', duration:9725689998926, key: '1' },
+  { id: '2', userId: 'USER2', duration:9725689998926, key: '2' },
+  { id: '3', userId: 'USER3', duration:9725689998926, key: '3'  },
+  { id: '4', userId: 'USER4', duration:9725689998926, key: '4'  },
 ];
 
 let roomDetails = [
@@ -286,6 +279,35 @@ let roomDetails = [
   { id: '2', userId: 'USER2', messages: [{ text: 'Hi there from room 2!', timestamp: 1725689998926 }] },
   { id: '3', userId: 'USER3', messages: [{ text: 'Greetings from room 3!', timestamp: 1725689998926 }] }
 ];
+
+
+app.post('/getRoomDataById', (req, res) => {
+  console.log('POST /getRoomDataById', req.body);
+  const { key } = req.body;
+  const room = rooms.find(room => room.id === key);
+  if (room) {
+    const roomData = roomDetails.find(roomData => roomData.userId === room.userId);
+    const resp = {room, roomData}
+    console.log("resp", resp)
+    res.json(resp);
+  } else {
+    res.status(404).json({ message: 'Room not found' });
+  }
+})
+
+app.post('/getRoomDataByKey', (req, res) => {
+  console.log('POST /getRoomDataByKey', req.body);
+  const { key } = req.body;
+  const room = rooms.find(room => room.key === key);
+  if (room) {
+    const roomData = roomDetails.find(roomData => roomData.userId === room.userId);
+    const resp = {room, roomData}
+    console.log("resp", resp)
+    res.json(resp);
+  } else {
+    res.status(404).json({ message: 'Room not found' });
+  }
+})
 
 // Routes
 app.get('/rooms', (req, res) => {
@@ -296,23 +318,30 @@ app.get('/rooms', (req, res) => {
 // check if server is up
 app.get('/ping', (req, res) => {
     console.log('GET /ping');
-  // // timeout for 5 seconds
-  // setTimeout(() => {
-  //   res.send('Pong!');
-  // }, 50000);
-  res.send('Pong!');
+  res.json('Pong!');
 });
 
-// show current time in html
-app.get('/', (req, res) => {
-  version = "v2024.11.26.01"
-    console.log('GET /currentTime');
-  const currentTime = new Date().toLocaleTimeString();
-  // Display version in h1 tag
-  res.send(`<h1>Version: ${version}</h1><p>Current time: ${currentTime}</p>`);
-  // res.send(`Current time: ${currentTime}`);
+// Set up the root route to display server stats
+app.get('/', async (req, res) => {
+  const version = "v2024.12.15.01";
+  // Get current time in IST
+  const currentTime = new Date().toLocaleTimeString('en-IN', { timeZone: 'Asia/Kolkata' });
+
+  // Prepare the HTML response with the version and time
+  const statsHtml = `
+    <h1>Server Version: ${version}</h1>
+    <p>Current Time (IST): ${currentTime}</p>
+  `;
+
+  // Send the HTML response
+  res.send(statsHtml);
 });
 
+app.get('/roomDetails', (req, res) => {
+    console.log('GET /roomDetails');
+    const roomData = {roomDetails, rooms}
+  res.json(roomData);
+})
 
 app.post('/createRoom', (req, res) => {
 console.log('POST /rooms create rooms');
@@ -323,7 +352,7 @@ console.log('Request body:', req.body);
     console.log('Room already exists for user:', userId);
     return res.status(400).json({ message: 'Room already exists' });
   }
-  const newRoom = { id: generateId(), userId, duration };
+  const newRoom = { id: generateId(), userId, duration, key: generateKey(userId) };
   rooms.push(newRoom);
   roomDetails.push({ id: newRoom.id, userId, messages: [] });
   res.status(201).json(newRoom);
@@ -357,7 +386,7 @@ app.post('/getMessages', (req, res) => {
   const room = roomDetails.find(room => room.userId === userId);
   if (!room) {  
     console.log('Room not found for user:', userId);
-    return res.status(404).json({ message: 'Room not found for getMessage' });
+    return res.status(404).json({ message: 'Room not found for :'+ userId });
   }
 //   room.messages.push(message);
 console.log('Room found:', room);
@@ -371,9 +400,10 @@ const { userId, message } = req.body;
 const room = roomDetails.find(room => room.userId === userId);
 if (!room) {  
   console.log('Room not found for user:', userId);
-  return res.status(404).json({ message: 'Room not found for getMessage' });
+  return res.status(404).json({ message: 'Room not found for : ' + userId });
 }
   room.messages.push(message);
+  io.to(userId).emit('message', message);
 console.log('Room found:', room);
 res.status(201).json(room);
 });
@@ -392,28 +422,58 @@ app.post('/enterRoom',(req, res)=>{
 })
 
 // If room duration is past remove the room from list
-setInterval(() => {
-  const currentTime = new Date().getTime();
-  console.log('Current time:', currentTime);
-  roomsAll = rooms
-  rooms = roomsAll.filter(room => {
-    const roomDuration = new Date(room.duration).getTime();
+// setInterval(() => {
+//   const currentTime = new Date().getTime();
+  
+//   const currentTimeUTC = new Date().getTime();  // Current time in UTC (timestamp in milliseconds)
+
+//   // IST is UTC + 5 hours 30 minutes
+//   const IST_OFFSET = 5.5 * 60 * 60 * 1000;  // 5.5 hours in milliseconds
+  
+//   // Calculate the current time in IST
+//   const currentTimeIST = new Date(currentTimeUTC + IST_OFFSET);  // Add IST offset to UTC time
+  
+//   // Get the timestamp for IST
+//   const timestampInIST = currentTimeIST.getTime();  // Get the timestamp of the IST time
+  
+//   console.log('Current UTC Time (Timestamp):', currentTimeUTC);  // UTC timestamp
+//   console.log('Current Time in IST (Timestamp):', timestampInIST);  // IST timestamp
+//   console.log('Current UTC Time (Timestamp):', currentTime); // UTC timestamp
+//   roomsAll = rooms
+//   rooms = roomsAll.filter(room => {
+//     const roomDuration = new Date(room.duration).getTime();
     
-    return roomDuration > currentTime;
-  });
-  // console.log('Updated rooms:', rooms);
-  // console the one that is in roomsAll but note in rooms
-  deletingRooms = roomsAll.filter(room => !rooms.includes(room));
-  console.log('Rooms removed:', deletingRooms);
-  // delete room details and files
-  deletingRooms.forEach(room => {
-    roomDetails = roomDetails.filter(roomDetail => roomDetail.userId !== room.userId);
-  });
-}, 10000);
+//     return roomDuration > timestampInIST;
+//   });
+//   // console.log('Updated rooms:', rooms);
+//   // console the one that is in roomsAll but note in rooms
+//   deletingRooms = roomsAll.filter(room => !rooms.includes(room));
+//   console.log('Rooms removed:', deletingRooms);
+//   // delete room details and files
+//   deletingRooms.forEach(room => {
+//     roomDetails = roomDetails.filter(roomDetail => roomDetail.userId !== room.userId);
+//   });
+// }, 10000);
 
 // Helper function to generate unique IDs
 function generateId() {
   return (Math.random() * 1000000).toFixed(0);
+}
+
+function generateKey(userId) {
+  // Create a secure random string
+  const randomBytes = crypto.getRandomValues(new Uint8Array(12));
+  
+  // Convert to a string of characters (base64 or hex)
+  const randomStr = Array.from(randomBytes).map(byte => String.fromCharCode(byte)).join('');
+  
+  // Combine userId with randomStr to ensure uniqueness
+  const uniqueKey = userId + randomStr;
+
+  // Optionally, hash the combination to ensure length and uniqueness
+  const hashedKey = btoa(uniqueKey).slice(0, 12); // Encode and slice to ensure it has 12 characters
+  console.log('Generated Key:', hashedKey);
+  return hashedKey;
 }
 
 // Start the server
